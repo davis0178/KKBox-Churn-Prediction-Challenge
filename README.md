@@ -1,98 +1,100 @@
-# Subscription Churn Retention Modeling
+# KKBox Subscription Churn Prediction
 
-这是一个用于订阅流失预测、留存分析以及 OTT 观众中途流失风险建模的作品集项目。
+This repository is a project for music streaming subscription churn modeling using
+the WSDM-KKBox Churn Prediction Challenge data.
 
-本仓库使用两个公开 Kaggle 数据集作为可复现的数据源，并将所有项目代码、分析和报告保留在本仓库本地。
+The task is to predict whether a user will churn after the current subscription expires.
+For KKBox's 30-day subscription model, churn is defined as having no new valid service
+subscription within 30 days after the current membership expiration date.
 
-## 数据来源
+Key transaction fields used to determine renewal or churn include `transaction_date`,
+`membership_expire_date`, and `is_cancel`. A cancellation event does not always mean
+the user has churned, because users may cancel, change plans, or resubscribe before the
+30-day grace window closes.
 
-| 数据集 | Kaggle slug | 用途 |
-| --- | --- | --- |
-| Customer Subscription Churn and Usage Patterns | `jayjoshi37/customer-subscription-churn-and-usage-patterns` | 客户级流失预测与留存策略分析 |
-| OTT Viewer Drop-Off and Retention Risk Dataset | `eklavya16/ott-viewer-drop-off-and-retention-risk-dataset` | 剧集级中途流失预测与内容留存风险分析 |
+The train and test sets are split by transaction timing. In the competition description,
+the training set contains users whose subscriptions expire in **February 2017**, so their
+renewal or churn outcome is observed around March 2017. The refreshed test data targets
+users whose subscriptions expire in **March 2017**, with churn or renewal observed around
+April 2017. Additional user behavior data is included beyond the train and test label
+files so participants can build features from listening activity, transaction history,
+and member profile signals.
 
-这些数据集属于教学/合成数据源。本仓库中的结果应理解为作品集与建模演示，而不是关于真实用户群体的结论。
+## Dataset
 
-## 项目结构
+This project uses the full Kaggle competition dataset.
 
-```text
-.
-|-- data/
-|   |-- raw/                  # Kaggle 下载数据，Git 忽略
-|   `-- processed/            # 本地画像分析输出，Git 忽略
-|-- notebooks/                # EDA 与建模 notebook
-|-- reports/
-|   `-- figures/              # 生成的图表，Git 忽略
-|-- scripts/                  # 下载、验证、画像分析和训练命令
-|-- src/churn_retention/      # 可复用的项目包
-`-- tests/                    # 本地项目代码的单元测试
-```
+### Tables
 
-## 环境配置
+- `train.csv`: Training labels with `msno` and `is_churn`.
+- `train_v2.csv`: Same format as `train.csv`; refreshed on 2017-11-06 and contains
+  March 2017 churn labels.
+- `sample_submission_zero.csv`: Test user IDs in the required submission format,
+  with `msno` and the `is_churn` value to predict.
+- `sample_submission_v2.csv`: Same format as `sample_submission_zero.csv`; refreshed
+  on 2017-11-06 and contains the April 2017 test set.
+- `transactions.csv`: User transaction history through 2017-02-28.
+- `transactions_v2.csv`: Same format as `transactions.csv`; refreshed on 2017-11-06
+  and contains transaction history through 2017-03-31.
+- `user_logs.csv`: Daily user listening behavior through 2017-02-28.
+- `user_logs_v2.csv`: Same format as `user_logs.csv`; refreshed on 2017-11-06 and
+  contains listening logs through 2017-03-31.
+- `members.csv`: User profile snapshot. Not every user has member metadata.
+- `members_v3.csv`: Refreshed on 2017-11-13 and replaces `members.csv`; the
+  snapshot `expiration_date` field was removed.
 
-使用 Python 3.11。
+### Important Fields
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\python -m pip install --upgrade pip setuptools wheel
-.\.venv\Scripts\python -m pip install -e ".[dev]"
-.\.venv\Scripts\python -m ipykernel install --user --name churn-retention --display-name "Python (churn-retention)"
-```
+Label files:
 
-验证环境：
+- `msno`: Anonymous user ID.
+- `is_churn`: Target variable. `1` means the user did not continue the subscription
+  within 30 days after expiration; `0` means renewal.
 
-```powershell
-.\.venv\Scripts\python scripts\validate_environment.py
-```
+Transaction files:
 
-## Kaggle 配置
+- `payment_method_id`: Payment method.
+- `payment_plan_days`: Membership plan length in days.
+- `plan_list_price`: Listed plan price in New Taiwan Dollar (NTD).
+- `actual_amount_paid`: Actual amount paid in New Taiwan Dollar (NTD).
+- `is_auto_renew`: Whether the plan is set to auto-renew.
+- `transaction_date`: Transaction date in `%Y%m%d` format.
+- `membership_expire_date`: Membership expiration date in `%Y%m%d` format.
+- `is_cancel`: Whether the user canceled the membership in this transaction.
 
-从你的 Kaggle 账号设置中下载 `kaggle.json`，并将其放到：
+User log files:
 
-```powershell
-%USERPROFILE%\.kaggle\kaggle.json
-```
+- `date`: Listening log date in `%Y%m%d` format.
+- `num_25`, `num_50`, `num_75`, `num_985`, `num_100`: Counts of songs played up to
+  different completion thresholds.
+- `num_unq`: Number of unique songs played.
+- `total_secs`: Total seconds played.
 
-然后下载两个数据集：
+Member files:
 
-```powershell
-.\.venv\Scripts\python scripts\download_kaggle_data.py
-```
+- `city`: User city code.
+- `bd`: Age. This field contains outliers, including negative and unrealistic values.
+- `gender`: User gender when available.
+- `registered_via`: Registration method.
+- `registration_init_time`: Registration date in `%Y%m%d` format.
+- `expiration_date`: Snapshot expiration date in `members.csv`; removed from
+  `members_v3.csv` because it does not represent actual churn behavior.
 
-该命令会将文件写入 `data/raw/`，该目录已被有意加入 Git 忽略。
+### Data Extraction Details
 
-## 运行项目
+The competition provides `WSDMChurnLabeller.scala` to generate labels for users in the
+prediction scope. The original cluster log history spans 2015-01-01 to 2017-03-31.
+With this label generator, participants can create additional training labels beyond
+the sample labels provided by the competition.
 
-分析已下载数据：
+The key extraction detail is the definition of the current membership expiration date.
+A user is in scope when the relevant expiration date falls inside the target prediction
+month. The user is labeled as churned only if there is no valid new subscription within
+30 days after that expiration date.
 
-```powershell
-.\.venv\Scripts\python scripts\profile_data.py
-```
-
-训练基线模型并写入指标/图表：
-
-```powershell
-.\.venv\Scripts\python scripts\train_baselines.py
-```
-
-运行测试与 lint：
-
-```powershell
-.\.venv\Scripts\python -m pytest
-.\.venv\Scripts\python -m ruff check .
-```
-
-## 建模范围
-
-本项目包含两条监督式建模路径：
-
-- 订阅流失：基于订阅套餐、费用、参与度、客服支持、支付、订阅时长和近期活动信号来预测客户流失。
-- OTT 中途流失：基于节奏、开场吸引力、内容元数据、观看行为和认知负荷特征来预测剧集级中途流失。
-
-基线模型包括逻辑回归和基于树的模型。评估报告包括 ROC-AUC、PR-AUC、分类报告、类别平衡图，以及在模型支持时提供的特征重要性摘要。
-
-## 备注
-
-- 原始 Kaggle 数据永不提交。
-- 公开报告应引用 Kaggle 数据集页面，并说明其合成/教学用途。
-- Kaggle notebook 可以作为有用参考，但本仓库的源代码和分析均在本地编写，以支持可复现性和作品集评审。
+Active cancellation can move the current expiration date earlier, so `is_cancel = 1`
+does not automatically mean churn. For example, if cancellation moves the expiration
+date to 2017-03-16 and the user buys another plan on 2017-04-01, the renewal happens
+within 30 days and the user is not churned. If a later transaction extends the
+membership expiration date outside the target month, the user is not included in that
+prediction window.
