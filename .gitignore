@@ -17,6 +17,7 @@ reports/*.csv
 models/
 *.joblib
 *.pkl
+references/
 
 # Local credentials and environment files
 .env
