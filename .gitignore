@@ -9,8 +9,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Local data and generated artifacts
-data/raw/
-data/processed/
+data
 reports/figures/
 reports/*.json
 reports/*.csv
@@ -31,3 +30,4 @@ desktop.ini
 .vscode/
 .idea/
 notebooks/Project_Log.ipynb
+Project_Log.ipynb
