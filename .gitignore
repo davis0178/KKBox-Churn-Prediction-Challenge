@@ -9,13 +9,9 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Local data and generated artifacts
-data
-reports/figures/
-reports/*.json
-reports/*.csv
-models/
-*.joblib
-*.pkl
+data/raw
+data/processed
+outputs/logs/Project_Log.ipynb
 references/
 
 # Local credentials and environment files
@@ -28,6 +24,5 @@ kaggle.json
 Thumbs.db
 desktop.ini
 .vscode/
-.idea/
-notebooks/Project_Log.ipynb
-Project_Log.ipynb
+outputs/submissions/sample_submission_v2.csv
+outputs/submissions/sample_submission_zero.csv
