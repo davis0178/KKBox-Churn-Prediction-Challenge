@@ -13,6 +13,7 @@ data/raw
 data/processed
 outputs/logs/Project_Log.ipynb
 references/
+Project_Log.ipynb
 
 # Local credentials and environment files
 .env
